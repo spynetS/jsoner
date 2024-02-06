@@ -9,13 +9,37 @@
 // string : string = property
 // string : {
 
+Token defined_tokens[] = {
+    {"OS","{"},
+    {"OC","}"},
+    {"LS","["},
+    {"LC","]"},
+    {"SS","\""},
+    {"SC","\""},
+    {"SEP",":"},
+    {"COM",","},
+};
+void syntax_error(){
+    puts("JSON WRONGLY FORMATED");
+    exit(1);
+}
+
+char* new_string(char *str){
+    char *n = malloc(sizeof(char)*(strlen(str)+1));
+    strcpy(n,str);
+    return n;
+}
 
 void print_object(Object *object){
+    if(object->type == OBJECT){
+        puts("{");
+    }else if(object->type == LIST){
+        puts("[");
+    }
     if(object->key != NULL)
-        printf("Key %s",object->key);
+        printf("%s",object->key);
     if(object->value != NULL)
-        printf(" > %s",object->value);
-    puts("");
+        printf(":%s\n",object->value);
 
     for(int i = 0; i < object->object_count; i ++){
         if(object->objects[i] != NULL){
@@ -25,139 +49,231 @@ void print_object(Object *object){
             print_object(object->objects[i]);
         }
     }
+    if(object->type == OBJECT){
+        puts("}");
+    }else if(object->type == LIST){
+        puts("]");
+    }
+}
+
+// this function compiles json objects
+//
+
+Token *new_token(char *token, char *value){
+    Token *new = malloc(sizeof(Token));
+    new->token = token;
+    new->value = value;
+    return new;
+}
+char *getToken(char c){
+    for(int i = 0; i < sizeof(defined_tokens)/sizeof(Token);i++){
+        if(defined_tokens[i].value[0] == c){
+            return defined_tokens[i].token;
+        }
+    }
+    return NULL;
+}
+void free_token(Token *token){
+    //printf("free %s\n",token->token);
+    if(token->token != NULL) free(token->token);
+    if(token->value != NULL) free(token->value);
+    free(token);
+}
+
+int lex(Token ***target,char* buffer){
+    Token **tokens = malloc(sizeof(Token*)*(strlen(buffer)+1));
+    int tc = 0;
+    int in_string = 0;
+    for(int i = 0; i < strlen(buffer);i++){
+        char c = buffer[i];
+
+        char *found = getToken(c);
+        if(found != NULL && strcmp(found,"SS") == 0)
+            in_string = !in_string;
+        if(found != NULL && ( !in_string || strcmp(found,"SS") == 0)){
+            char *value = malloc(sizeof(char)*2);
+            value[0] = c;
+            value[1] = '\0';
+
+            tokens[i] = new_token(new_string(found), value);
+            tc++;
+        }else{
+            char *value = malloc(sizeof(char)*2);
+            value[0] = c;
+            value[1] = '\0';
+
+            tokens[i] = new_token(new_string("CHAR"), value);
+            tc++;
+        }
+    }
+
+    for(int i = 0; i < tc; i ++){
+        printf("%s\n", tokens[i]->token);
+    }
+    puts("----");
+    *target = malloc(sizeof(Token*)*tc);
+    memcpy(*target, tokens, sizeof(Token*)*tc);
+    free(tokens);
+    return tc;
+}
+
+int is_token(char *token){
+    for(int i = 0; i < sizeof(defined_tokens)/sizeof(Token);i++){
+        if(strcmp(defined_tokens[i].token,token)==0){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int parse_values(Token ***target, Token **src, int len){
+    Token **token_buffer = malloc(sizeof(Token*)*len);
+    int tbc = 0;
+
+    for(int i =0 ; i < len; i ++){
+        token_buffer[tbc] = src[i];
+        tbc++;
+        //find value
+        if(!strcmp(src[i]->token,"SEP")){
+    int count = 1;
+    char buf[100];
+            int reading_str = (strcmp(src[i+1]->token,"SS") == 0) ? 1 : 0;
+
+            if(reading_str){
+                free_token(src[i+count]);
+                while( strcmp(src[i+count+1]->token,"SS") != 0 ){
+                    buf[count-1] = src[i+count+1]->value[0];
+                    free_token(src[i+count+1]);
+                    count++;
+                }
+                i++;
+                free_token(src[i+count]);
+
+            }
+            else{
+
+                while(!is_token(src[i+count]->token)){
+                    buf[count -1] = src[i+count]->value[0];
+                    free_token(src[i+count]);
+                    count++;
+                }
+                count --;
+            }
+            if(count > 1){
+                buf[count-1] = '\0';
+                token_buffer[tbc] = new_token(new_string("STR"),new_string(buf));
+                tbc++;
+                i += count;
+            }
+        }
+        // find key
+        else if(strcmp(src[i]->token,"SS") == 0){
+            int count = 0;
+            char buf[100];
+            free_token(src[i]);
+            tbc--;
+            while( strcmp(src[i+count+1]->token,"SS") != 0 ){
+                buf[count] = src[i+count+1]->value[0];
+                free_token(src[i+count+1]);
+                count++;
+            }
+            i++;
+            free_token(src[i+count]);
+
+            if(count > 1){
+                buf[count] = '\0';
+
+                token_buffer[tbc] = new_token(new_string("KEY"),new_string(buf));
+                tbc++;
+                i+= count;
+            }
+        }
+    }
+    *target = realloc(*target, sizeof(Token*)*tbc);
+    memcpy(*target, token_buffer, sizeof(Token*)*tbc);
+    free(token_buffer);
+    return tbc;
 }
 
 Object *parse(char *buffer){
-    char oc = '{';
-    char cc = '}';
-    char ol = '[';
-    char cl = ']';
-    Stack *stack = malloc(sizeof(Stack));
-    int reading_key = 0;
-    char keybuffer[100];
-
-    int reading_value = 0;
-    char valuebuffer[100];
-    int reading_list = 0;
-
-    for(int i = 0; i < strlen(buffer); i ++){
-        char c = buffer[i];
-        if(c == ol){
-            reading_list = 1;
-            Object *new = new_object(LIST);
-            printf("keyu %s\n", keybuffer);
-            if(strlen(keybuffer) > 0){
-               char* key = malloc(sizeof(char)*(strlen(keybuffer)+1));
-               strcpy(key,keybuffer);
-               new->key = key;
-               memset(keybuffer,'\0',sizeof(keybuffer));
-
-            }
-            reading_value = 1;
-            push(stack,new);
-            continue;
-        }
-        if(c == cl){
-            reading_list = 0;
-            Object *poped = pop(stack);
-            if(peek(stack) != NULL){
-                add_object(peek(stack), poped);
-            }
-            else {
-                free(stack);
-                return poped;
-            }
-        }
-        if(c == oc){
-            reading_list = 0;
-            Object *new = new_object(OBJECT);
-            if(strlen(keybuffer) > 0){
-               char* key = malloc(sizeof(char)*(strlen(keybuffer)+1));
-               strcpy(key,keybuffer);
-               new->key = key;
-               memset(keybuffer,'\0',sizeof(keybuffer));
-
-            }
-            reading_value = 0;
-            push(stack,new);
-        }
-        if(c == cc){
-            Object *poped = pop(stack);
-            if(peek(stack) != NULL){
-                add_object(peek(stack), poped);
-            }
-            else {
-                free(stack);
-                return poped;
-            }
-        }
-        if(!reading_list){
-            // if we find a " and our key
-            // is empty we should now read key
-            if(c == '"' && strlen(keybuffer) == 0 && !reading_value) reading_key = 1;
-            // if we see " and we have read key
-            // we should read value
-            else if(c == ':' && strlen(keybuffer) > 0 && reading_value == 0 ){
-                reading_value = 1;
-                reading_key = 0;
-                continue;
-            }
-            // if we see " and we are reading value
-            // we should stop reading and add
-            else if((c == ',' || c==cc || c == cl) && reading_value == 1){
-                Object *string = new_object(STRING);
-
-                char *tmp = malloc(sizeof(char) * (strlen(valuebuffer)+1));
-                strcpy(tmp, valuebuffer);
-                sprintf(tmp,"%s",tmp); // add the "
-                string->value = tmp;
-
-                char *key = malloc(sizeof(char) * (strlen(keybuffer)+1));
-                strcpy(key,keybuffer);
-                string->key = key;
-
-                add_object(((Object*)peek(stack)), string);
-
-                printf("new P %s\n",((Object*)peek(stack))->objects[0]->key);
-
-                // reset our buffers
-                memset(keybuffer,'\0',sizeof(keybuffer));
-                memset(valuebuffer,'\0',sizeof(valuebuffer));
-                reading_value = 0;
-                reading_key = 0;
-            }
-
-            if(reading_key){
-                // add char to string keybuffer
-                sprintf(keybuffer,"%s%c",keybuffer,c);
-            }
-        }
-        else{
-            if((c == ',' || c==cc || c == cl) && reading_value == 1){
-                Object *string = new_object(STRING);
-                char *tmp = malloc(sizeof(char) * (strlen(valuebuffer)+1));
-                strcpy(tmp, valuebuffer);
-                sprintf(tmp,"%s",tmp); // add the "
-                string->value = tmp;
-
-                add_object(((Object*)peek(stack)), string);
-
-                printf("new P %s\n",((Object*)peek(stack))->objects[0]->key);
-                // reset our buffers
-                memset(valuebuffer,'\0',sizeof(valuebuffer));
-                continue;
-            }
-
-        }
-        if(reading_value){
-            // add char to string keybuffer
-            sprintf(valuebuffer,"%s%c",valuebuffer,c);
-        }
-        //log
-        printf("read rk %d, rv %d, %c\n", reading_key, reading_value,c);
+    Token **tokens;
+    int len = lex(&tokens,buffer);
+    len = parse_values(&tokens,tokens,len);
+    for(int i = 0; i < len; i ++){
+        printf("%s\n", tokens[i]->token);
     }
+    puts("<----->");
+    Stack *stack = malloc(sizeof(Stack));
+    stack->count = 0;
+
+    char curr_key[100];
+    for(int i = 0; i < len; i ++){
+        Token *t = tokens[i];
+        if(strcmp(t->token,"OS")==0){
+            puts("Open object");
+            Object *n = new_object(OBJECT);
+            push(stack,n);
+        }
+        if(strcmp(t->token,"OC")==0){
+            puts("close object");
+            if(stack->count > 1){
+                Object *p = pop(stack);
+                add_object(peek(stack), p);
+            }else{
+                goto end;
+            }
+        }
+        if(strcmp(t->token,"LS")==0){
+            puts("open list");
+            Object *n = new_object(LIST);
+            push(stack,n);
+        }
+        if(strcmp(t->token,"LC")==0){
+            puts("close list");
+            if(stack->count > 1){
+                Object *p = pop(stack);
+                add_object(peek(stack), p);
+            }else{
+                goto end;
+            }
+        }
+
+        if(strcmp(t->token,"KEY")==0){
+            if(strcmp(tokens[i+1]->token, "SEP") == 0){
+                strcpy(curr_key, t->value);
+                if( strcmp(tokens[i+2]->token, "STR") == 0 ){
+                    Object *n = new_object(STRING);
+                    n->key = new_string(curr_key);
+                    n->value = new_string(tokens[i+2]->value);
+                    add_object(peek(stack),n);
+                }
+                else if( strcmp(tokens[i+2]->token, "OS") == 0 ||
+                         strcmp(tokens[i+2]->token, "LS") == 0 ){
+                }
+                else{
+                    syntax_error();
+                }
+            }
+            else{
+                syntax_error();
+            }
+        }
+
+
+    }
+
+
+end:
+    for(int i = 0; i < len; i ++){
+        printf("%s,", tokens[i]->token);
+        free_token(tokens[i]);
+    }
+    free(tokens);
+    puts("|------|");
+
+    Object *p = pop(stack);
     free(stack);
-    return pop(stack);
+    return p;
 }
 
 
@@ -222,6 +338,7 @@ void *pop(Stack *stack){
     if(node == NULL) return NULL;
 
     void *data = node->data;
+    stack->count -= 1;
 
     stack->node = stack->node->next;
     free(node);
@@ -233,6 +350,7 @@ void push(Stack *stack, void *data){
     new->data = data;
     new->next = stack->node;
     stack->node = new;
+    stack->count += 1;
 }
 
 /*
@@ -247,5 +365,6 @@ void push(Stack *stack, void *data){
             "age": 10
         }
     ]
+{"users":[{"name":"alfred, allerller"},{"name":"ali","age":30}]}
 
 */

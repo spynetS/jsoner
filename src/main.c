@@ -13,14 +13,14 @@ int main(){
 
     if(root != NULL){
         print_object(root);
+        free_object(root);
     }
     else{
         puts("Root was null");
     }
 
-    free_object(root);
 
-    printf("%s\n",buffer);
+    //printf("%s\n",buffer);
 
 
     return 0;
