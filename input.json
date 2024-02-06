@@ -1,8 +1,12 @@
 {
-    "user":{
-        "info":{
-            "name": "alfred",
-            "age":"10"
+    "users":[
+        {
+            "name":"alfred",
+        "age": 19
+        },
+        {
+            "name":"ali",
+        "age": 30
         }
-    }
+    ]
 }
