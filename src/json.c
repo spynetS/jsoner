@@ -30,24 +30,27 @@ char* new_string(char *str){
     return n;
 }
 
-void print_object(Object *object){
+void print_object(Object *object, int depth){
+    for(int i = 0; i < depth; i ++){
+        printf("\t");
+    }
+    if(object->key != NULL)
+        printf("%s:",object->key);
     if(object->type == OBJECT){
         puts("{");
     }else if(object->type == LIST){
         puts("[");
     }
-    if(object->key != NULL)
-        printf("%s",object->key);
     if(object->value != NULL)
-        printf(":%s\n",object->value);
+        printf("%s\n",object->value);
 
     for(int i = 0; i < object->object_count; i ++){
         if(object->objects[i] != NULL){
-            if(object->type == LIST){
-                printf("%d ",i);
-            }
-            print_object(object->objects[i]);
+            print_object(object->objects[i],depth+1);
         }
+    }
+    for(int i = 0; i < depth-1; i ++){
+        printf("\t");
     }
     if(object->type == OBJECT){
         puts("}");
@@ -108,9 +111,9 @@ int lex(Token ***target,char* buffer){
     }
 
     for(int i = 0; i < tc; i ++){
-        printf("%s\n", tokens[i]->token);
+        printf("%s,", tokens[i]->token);
     }
-    puts("----");
+    /* puts("----"); */
     *target = malloc(sizeof(Token*)*tc);
     memcpy(*target, tokens, sizeof(Token*)*tc);
     free(tokens);
@@ -134,28 +137,63 @@ int parse_values(Token ***target, Token **src, int len){
     for(int i =0 ; i < len; i ++){
         Token *t = src[i];
         printf("%s ",t->token);
-        token_buffer[i] = t;
-        tbc++;
 
         if(strcmp(t->token,"CHAR")==0){
             printf("found chars, ");
             //string literal before
             if(strcmp(src[i-1]->token,"SS")==0){
-                printf("this is string");
+                //remove "
+                free_token(token_buffer[tbc-1]);
+                tbc--;
+
                 int count = 0;
-                while(strcmp(src[i+count]->token, "SS") !=0){
-                    free_token(src[i+count]);
+                char buf[100];
+                while(strcmp(src[i]->token, "SS") !=0){
+                    buf[count] = src[i]->value[0];
+                    free_token(src[i]);
                     count++;
+                    i++;
                 }
+                free_token(src[i]);
 
-                token_buffer[tbc-2] = new_token(new_string("STR"), new_string("CONTENT"));
+                buf[count] = '\0';
+                char temp[count];
+                sprintf(temp,"\"%s\"",buf); // add " to the value
+                char token[] = "STR";
+                if(strcmp(src[i+1]->token, "SEP")==0){
+                    token[0] = 'K';
+                    token[1] = 'E';
+                    token[2] = 'Y';
+                }
+                token_buffer[tbc] = new_token(new_string(token), new_string(temp));
+                tbc++;
 
-                i+=count;
             }
+            else{
+        int count = 0;
+                char buf[100];
+                while(!is_token(src[i]->token)){
+                    buf[count] = src[i]->value[0];
+                    free_token(src[i]);
+                    count++;
+                    i++;
+                }
+                //free_token(src[i]);
+                i--;
+
+                buf[count] = '\0';
+                token_buffer[tbc] = new_token(new_string("STR"), new_string(buf));
+                tbc++;
+            }
+        }
+        else{
+            printf("%s added at %d\n",t->token, tbc);
+            token_buffer[tbc] = t;
+            tbc++;
         }
         puts("");
     }
-
+    puts("PARSE_VALUE ____ END _____");
     *target = realloc(*target, sizeof(Token*)*tbc);
     memcpy(*target, token_buffer, sizeof(Token*)*tbc);
     free(token_buffer);
@@ -167,7 +205,10 @@ Object *parse(char *buffer){
     int len = lex(&tokens,buffer);
     len = parse_values(&tokens,tokens,len);
     for(int i = 0; i < len; i ++){
-        printf("%s\n", tokens[i]->token);
+        if(tokens[i] != NULL)
+            printf("%s\n", tokens[i]->token);
+        else
+            printf("NULL\n");
     }
     puts("<----->");
     Stack *stack = malloc(sizeof(Stack));
@@ -191,7 +232,7 @@ Object *parse(char *buffer){
             }
         }
         if(strcmp(t->token,"LS")==0){
-            puts("open list");
+    puts("open list");
             Object *n = new_object(LIST);
             push(stack,n);
         }
@@ -205,17 +246,13 @@ Object *parse(char *buffer){
             }
         }
 
-        if(strcmp(t->token,"KEY")==0){
-            if(strcmp(tokens[i+1]->token, "SEP") == 0){
-                strcpy(curr_key, t->value);
-                if( strcmp(tokens[i+2]->token, "STR") == 0 ){
-                    Object *n = new_object(STRING);
-                    n->key = new_string(curr_key);
-                    n->value = new_string(tokens[i+2]->value);
-                    add_object(peek(stack),n);
-                }
-                else if( strcmp(tokens[i+2]->token, "OS") == 0 ||
-                         strcmp(tokens[i+2]->token, "LS") == 0 ){
+        if(strcmp(t->token, "STR")==0){
+            Object *p = (Object*) peek(stack);
+            if(p->type == LIST){
+                if(strcmp(tokens[i+1]->token, "STR") != 0){
+                    Object *str = new_object(STRING);
+                    str->value = new_string(t->value);
+                    add_object(p, str);
                 }
                 else{
                     syntax_error();
@@ -225,8 +262,37 @@ Object *parse(char *buffer){
                 syntax_error();
             }
         }
-
-
+        if(strcmp(t->token,"KEY")==0){
+            if(strcmp(tokens[i+1]->token, "SEP") == 0){
+                strcpy(curr_key, t->value);
+                if( strcmp(tokens[i+2]->token, "STR") == 0 ){
+                    Object *n = new_object(STRING);
+                    n->key = new_string(curr_key);
+                    n->value = new_string(tokens[i+2]->value);
+                    add_object(peek(stack),n);
+                    i+=2;
+                }
+                else if( strcmp(tokens[i+2]->token, "OS") == 0 ){
+                    puts("Open object");
+                    Object *n = new_object(OBJECT);
+                    push(stack,n);
+                    i+=2;
+                }
+                else if( strcmp(tokens[i+2]->token, "LS") == 0 ){
+                    puts("Open LIST");
+                    Object *n = new_object(LIST);
+                    n->key = new_string(curr_key);
+                    push(stack,n);
+                    i+=2;
+                }
+                else{
+                    syntax_error();
+                }
+            }
+            else{
+                syntax_error();
+            }
+        }
     }
 
 

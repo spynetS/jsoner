@@ -23,7 +23,7 @@ typedef struct token{
 Object *new_object(int type);
 void add_object(Object* object, Object* element);
 void free_object(Object *object);
-void print_object(Object *object);
+void print_object(Object *object,int depth);
 
 Object *parse(char *buffer);
 void remove_spaces(char *buffer);

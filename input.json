@@ -1,11 +1,19 @@
 {
-    "user":{
-        "name":"alfred",
-        "age":100,
-        "friend":{
-            "name":"ali",
-            "age":19
+    "users":[
+        [10,20,10],
+        {
+            "name":"alfred",
+            "age":10,
+            "friends":[
+                {
+                    "name":"alfred",
+                    "age":10
+                },
+                {
+                    "name":"alfred",
+                    "age":10
+                }
+            ]
         }
-    },
-    "users":"asd"
+    ]
 }
