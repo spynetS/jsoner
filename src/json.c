@@ -130,65 +130,32 @@ int parse_values(Token ***target, Token **src, int len){
     Token **token_buffer = malloc(sizeof(Token*)*len);
     int tbc = 0;
 
+    int read_val = 0;
     for(int i =0 ; i < len; i ++){
-        token_buffer[tbc] = src[i];
+        Token *t = src[i];
+        printf("%s ",t->token);
+        token_buffer[i] = t;
         tbc++;
-        //find value
-        if(!strcmp(src[i]->token,"SEP")){
-    int count = 1;
-    char buf[100];
-            int reading_str = (strcmp(src[i+1]->token,"SS") == 0) ? 1 : 0;
 
-            if(reading_str){
-                free_token(src[i+count]);
-                while( strcmp(src[i+count+1]->token,"SS") != 0 ){
-                    buf[count-1] = src[i+count+1]->value[0];
-                    free_token(src[i+count+1]);
-                    count++;
-                }
-                i++;
-                free_token(src[i+count]);
-
-            }
-            else{
-
-                while(!is_token(src[i+count]->token)){
-                    buf[count -1] = src[i+count]->value[0];
+        if(strcmp(t->token,"CHAR")==0){
+            printf("found chars, ");
+            //string literal before
+            if(strcmp(src[i-1]->token,"SS")==0){
+                printf("this is string");
+                int count = 0;
+                while(strcmp(src[i+count]->token, "SS") !=0){
                     free_token(src[i+count]);
                     count++;
                 }
-                count --;
-            }
-            if(count > 1){
-                buf[count-1] = '\0';
-                token_buffer[tbc] = new_token(new_string("STR"),new_string(buf));
-                tbc++;
-                i += count;
+
+                token_buffer[tbc-2] = new_token(new_string("STR"), new_string("CONTENT"));
+
+                i+=count;
             }
         }
-        // find key
-        else if(strcmp(src[i]->token,"SS") == 0){
-            int count = 0;
-            char buf[100];
-            free_token(src[i]);
-            tbc--;
-            while( strcmp(src[i+count+1]->token,"SS") != 0 ){
-                buf[count] = src[i+count+1]->value[0];
-                free_token(src[i+count+1]);
-                count++;
-            }
-            i++;
-            free_token(src[i+count]);
-
-            if(count > 1){
-                buf[count] = '\0';
-
-                token_buffer[tbc] = new_token(new_string("KEY"),new_string(buf));
-                tbc++;
-                i+= count;
-            }
-        }
+        puts("");
     }
+
     *target = realloc(*target, sizeof(Token*)*tbc);
     memcpy(*target, token_buffer, sizeof(Token*)*tbc);
     free(token_buffer);
