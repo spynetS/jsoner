@@ -15,10 +15,15 @@ typedef struct object{
 
 }Object;
 
+typedef struct token{
+    char *token;
+    char *value;
+} Token;
+
 Object *new_object(int type);
 void add_object(Object* object, Object* element);
 void free_object(Object *object);
-void print_object(Object *object);
+void print_object(Object *object,int depth);
 
 Object *parse(char *buffer);
 void remove_spaces(char *buffer);
@@ -32,6 +37,7 @@ typedef struct node{
 
 typedef struct stack{
     Node *node;
+    int count;
 } Stack;
 
 void *peek(Stack *stack);
