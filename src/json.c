@@ -200,6 +200,22 @@ int parse_values(Token ***target, Token **src, int len){
     return tbc;
 }
 
+char *get_grammer(char *grammer[10][5], char *word){
+    for(int i = 0 ; i < 6;i ++){
+        int j = 0;
+        while(grammer[i][j] != NULL){
+
+            j++;
+        }
+        /* if(strcmp(grammer[i][1],word)==0){ */
+        /*     printf("%s\n",grammer[i][0]); */
+        /*     return grammer[i][0]; */
+        /* } */
+    }
+    printf("NO FOUND\n");
+    return NULL;
+}
+
 Object *parse(char *buffer){
     Token **tokens;
     int len = lex(&tokens,buffer);
@@ -221,18 +237,46 @@ Object *parse(char *buffer){
         {"LS","LS"},
         {"OC","OC"},
         {"LC","LC"},
-        {"KEY","SEP","STR","COM","AKV"},
-        {"KEY","SEP","STR","AKV"},
-        {"KEY","SEP","OS","AKO"},
-        {"KEY","SEP","LS","AKL"},
+        {"AV","STR","COM"},
+        {"AV","STR"},
+        {"AKV","KEY","SEP","STR","COM"},
+        {"AKV","KEY","SEP","STR"},
+        {"AKO","KEY","SEP","OS"},
+        {"AKL","KEY","SEP","LS"},
     };
 
     char curr_key[100];
+    char new[200];
     for(int i = 0; i < len; i ++){
         Token *t = tokens[i];
-
+        // if token in grammer
+        // check if next word maches gramer
+        char got[4] = {'\0'};
+        for(int j = 0 ; j < 10;j ++){
+            int k = 0;
+            while(seq[j][k+1] != NULL){
+                if(i+k < len){
+                    printf("%s,",tokens[i+k]->token);
+                    if(strcmp(seq[j][k+1],tokens[i+k]->token) != 0){
+                        printf(" last not eq %s %s ", seq[j][k+1], tokens[i+k]->token);
+                        goto notfound;
+                    }
+                    k++;
+                }else
+                    goto notfound;
+            }
+            i+=k-1;
+            strcpy(got,seq[j][0]);
+            puts("addded");
+            break;
+        notfound:
+            puts("not found");
+            continue;
+        }
+        sprintf(new,"%s,%s",new,got);
 
     }
+    puts(new);
 
 
 end:
