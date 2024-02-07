@@ -213,86 +213,25 @@ Object *parse(char *buffer){
     puts("<----->");
     Stack *stack = malloc(sizeof(Stack));
     stack->count = 0;
+    //the gramer list, the last string
+    //is the strong to replace all the
+    //string with
+    char *seq[10][5] = {
+        {"OS","OS"},
+        {"LS","LS"},
+        {"OC","OC"},
+        {"LC","LC"},
+        {"KEY","SEP","STR","COM","AKV"},
+        {"KEY","SEP","STR","AKV"},
+        {"KEY","SEP","OS","AKO"},
+        {"KEY","SEP","LS","AKL"},
+    };
 
     char curr_key[100];
     for(int i = 0; i < len; i ++){
         Token *t = tokens[i];
-        if(strcmp(t->token,"OS")==0){
-            puts("Open object");
-            Object *n = new_object(OBJECT);
-            push(stack,n);
-        }
-        if(strcmp(t->token,"OC")==0){
-            puts("close object");
-            if(stack->count > 1){
-                Object *p = pop(stack);
-                add_object(peek(stack), p);
-            }else{
-                goto end;
-            }
-        }
-        if(strcmp(t->token,"LS")==0){
-    puts("open list");
-            Object *n = new_object(LIST);
-            push(stack,n);
-        }
-        if(strcmp(t->token,"LC")==0){
-            puts("close list");
-            if(stack->count > 1){
-                Object *p = pop(stack);
-                add_object(peek(stack), p);
-            }else{
-                goto end;
-            }
-        }
 
-        if(strcmp(t->token, "STR")==0){
-            Object *p = (Object*) peek(stack);
-            if(p->type == LIST){
-                if(strcmp(tokens[i+1]->token, "STR") != 0){
-                    Object *str = new_object(STRING);
-                    str->value = new_string(t->value);
-                    add_object(p, str);
-                }
-                else{
-                    syntax_error();
-                }
-            }
-            else{
-                syntax_error();
-            }
-        }
-        if(strcmp(t->token,"KEY")==0){
-            if(strcmp(tokens[i+1]->token, "SEP") == 0){
-                strcpy(curr_key, t->value);
-                if( strcmp(tokens[i+2]->token, "STR") == 0 ){
-                    Object *n = new_object(STRING);
-                    n->key = new_string(curr_key);
-                    n->value = new_string(tokens[i+2]->value);
-                    add_object(peek(stack),n);
-                    i+=2;
-                }
-                else if( strcmp(tokens[i+2]->token, "OS") == 0 ){
-                    puts("Open object");
-                    Object *n = new_object(OBJECT);
-                    push(stack,n);
-                    i+=2;
-                }
-                else if( strcmp(tokens[i+2]->token, "LS") == 0 ){
-                    puts("Open LIST");
-                    Object *n = new_object(LIST);
-                    n->key = new_string(curr_key);
-                    push(stack,n);
-                    i+=2;
-                }
-                else{
-                    syntax_error();
-                }
-            }
-            else{
-                syntax_error();
-            }
-        }
+
     }
 
 
