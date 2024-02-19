@@ -252,7 +252,7 @@ Object *parse(char *buffer){
         // if token in grammer
         // check if next word maches gramer
         char got[4] = {'\0'};
-        for(int j = 0 ; j < 10;j ++){
+        for(int j = 0 ; j < 8;j ++){
             int k = 0;
             while(seq[j][k+1] != NULL){
                 if(i+k < len){
@@ -265,7 +265,7 @@ Object *parse(char *buffer){
                 }else
                     goto notfound;
             }
-            i+=k-1;
+            i+=k;
             strcpy(got,seq[j][0]);
             puts("addded");
             break;
